@@ -2,6 +2,11 @@
 build/
 out/
 cmake-build-*/
+_build/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
 
 # vcpkg
 vcpkg/buildtrees/
@@ -19,6 +24,15 @@ vcpkg/packages/
 *.user
 *.userosscache
 *.sln.docstates
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+*.opendb
+*.db
+*.db-shm
+*.db-wal
 
 # Visual Studio Code
 .vscode/
@@ -26,6 +40,12 @@ vcpkg/packages/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
 
 # Compiled binaries
 *.exe
@@ -36,14 +56,31 @@ vcpkg/packages/
 *.ilk
 *.exp
 *.dp64
+*.so
+*.dylib
+*.a
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!cmake/
+!scripts/*.cmake
 
 # Configuration files with secrets
 *config.json
 !sample-config.json
+*.env
+.env.*
 
 # Logs
 *.log
 logs/
+log/
 
 # Temporary files
 *.tmp
@@ -51,6 +88,8 @@ logs/
 *~
 *.swp
 *.swo
+*.bak
+*.orig
 
 # OS generated files
 .DS_Store
@@ -60,6 +99,7 @@ logs/
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
 # Package managers
 node_modules/
@@ -73,17 +113,43 @@ node_modules/
 # Documentation
 docs/html/
 docs/latex/
+doc/html/
+doc/latex/
 
 # Test results
 TestResults/
 test-results.xml
 coverage.xml
+*.gcov
+*.gcda
+*.gcno
 
 # Benchmarks
 benchmark-results.json
 size-metrics.json
+*.prof
 
 # Artifacts
 artifacts/
 packages/
-*.zip 
+*.zip
+*.tar.gz
+*.tar.bz2
+
+# Debug dumps
+*.dmp
+core
+core.*
+
+# Static analysis
+cppcheck-results.xml
+clang-tidy-results.txt
+
+# Profiling
+*.vsp
+*.psess
+*.vspx
+*.sap
+
+# Windows specific
+*.lnk 

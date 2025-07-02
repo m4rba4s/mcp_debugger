@@ -6,19 +6,11 @@
   "documentation": "https://github.com/your-repo/mcp-debugger/wiki",
   "license": "MIT",
   "supports": "windows & x64",
+  "builtin-baseline": "0cb95c860ea83aafc1b24350510b30dec535989a",
   "dependencies": [
-    {
-      "name": "nlohmann-json",
-      "version>=": "3.11.0"
-    },
-    {
-      "name": "cpp-httplib",
-      "version>=": "0.14.0"
-    },
-    {
-      "name": "gtest",
-      "version>=": "1.14.0"
-    }
+    "nlohmann-json",
+    "cpp-httplib",
+    "gtest"
   ],
   "features": {
     "tests": {

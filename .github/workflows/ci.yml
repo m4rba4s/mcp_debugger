@@ -1,171 +1,84 @@
-name: CI/CD Pipeline
+name: MCP Debugger CI
 
 on:
   push:
-    branches: [ main, develop ]
-    tags: [ 'v*' ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
-
-env:
-  BUILD_TYPE: Release
+  release:
+    types: [published]
 
 jobs:
-  build-windows:
+  build:
     runs-on: windows-latest
     
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
       with:
         submodules: recursive
         
-    - name: Setup MSBuild
+    - name: Setup MSVC
       uses: microsoft/setup-msbuild@v2
       
+    - name: Setup vcpkg
+      run: |
+        .\vcpkg\bootstrap-vcpkg.bat
+        .\vcpkg\vcpkg.exe integrate install
+        
     - name: Cache vcpkg
       uses: actions/cache@v4
       with:
         path: |
           vcpkg/installed
-          vcpkg/buildtrees
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+          vcpkg/packages
+        key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
         restore-keys: |
-          ${{ runner.os }}-vcpkg-
+          vcpkg-${{ runner.os }}-
           
-    - name: Bootstrap vcpkg
-      run: |
-        if (-not (Test-Path "vcpkg/vcpkg.exe")) {
-          .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
-        }
-        
     - name: Install dependencies
       run: |
         .\vcpkg\vcpkg.exe install --triplet x64-windows
         
     - name: Configure CMake
       run: |
-        cmake -B build -S . `
-          -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-          -DBUILD_TESTS=OFF
-          
+        cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
+        
     - name: Build
-      run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
-      
-    - name: Create artifacts directory
-      run: New-Item -ItemType Directory -Path artifacts -Force
-      
-    - name: Copy main executable
       run: |
-        $exePath = Get-ChildItem -Path "build" -Name "mcp-debugger.exe" -Recurse | Select-Object -First 1
-        if ($exePath) {
-          Copy-Item "build/$exePath" "artifacts/"
-          Write-Host "Found and copied: $exePath"
-        } else {
-          Write-Host "Main executable not found, checking build output..."
-          Get-ChildItem -Path "build" -Recurse -Name "*.exe" | ForEach-Object { Write-Host "Found EXE: $_" }
+        cmake --build build --config Release
+        
+    - name: Test build artifacts
+      run: |
+        if (!(Test-Path "build/src/cli/Release/mcp-debugger.exe")) {
+          Write-Error "Main executable not found!"
+          exit 1
         }
-        
-    - name: Copy plugin
-      run: |
-        $pluginPath = Get-ChildItem -Path "build" -Name "*.dp64" -Recurse | Select-Object -First 1
-        if ($pluginPath) {
-          Copy-Item "build/$pluginPath" "artifacts/"
-          Write-Host "Found and copied plugin: $pluginPath"
-        } else {
-          Write-Host "Plugin not found, checking build output..."
-          Get-ChildItem -Path "build" -Recurse -Name "*.dll" | ForEach-Object { Write-Host "Found DLL: $_" }
+        if (!(Test-Path "build/src/x64dbg/Release/mcp_debugger.dp64")) {
+          Write-Error "Plugin not found!"
+          exit 1
         }
+        Write-Host "✅ All artifacts built successfully!"
         
-    - name: Copy documentation
-      run: |
-        if (Test-Path "sample-config.json") { Copy-Item "sample-config.json" "artifacts/" }
-        if (Test-Path "QUICK_START.md") { Copy-Item "QUICK_START.md" "artifacts/" }
-        if (Test-Path "CI_CD_SUMMARY.md") { Copy-Item "CI_CD_SUMMARY.md" "artifacts/" }
-        
-    - name: List artifacts
-      run: |
-        Write-Host "=== Artifacts created ==="
-        Get-ChildItem -Path "artifacts" -Recurse | ForEach-Object { Write-Host $_.FullName }
-        
-    - name: Upload build artifacts
+    - name: Upload artifacts
+      if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: mcp-debugger-windows-${{ github.sha }}
-        path: artifacts/
+        name: mcp-debugger-${{ github.sha }}
+        path: |
+          build/src/cli/Release/mcp-debugger.exe
+          build/src/x64dbg/Release/mcp_debugger.dp64
+          build/src/cli/Release/*.dll
         retention-days: 30
         
-  release:
-    runs-on: windows-latest
-    needs: build-windows
-    if: startsWith(github.ref, 'refs/tags/v')
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: mcp-debugger-windows-${{ github.sha }}
-        path: artifacts/
-        
-    - name: Create release package
-      run: |
-        $version = "${{ github.ref_name }}"
-        $packageName = "mcp-debugger-$version-windows-x64"
-        
-        New-Item -ItemType Directory -Path $packageName -Force
-        Copy-Item "artifacts/*" "$packageName/" -Recurse -Force
-        
-        # Create installation script
-        @'
-        @echo off
-        echo Installing MCP Debugger...
-        
-        REM Copy plugin to x64dbg if found
-        if exist "C:\x64dbg\plugins\" (
-            copy "*.dp64" "C:\x64dbg\plugins\"
-            echo Plugin installed to x64dbg
-        )
-        
-        echo.
-        echo Setup complete! 
-        echo 1. Edit sample-config.json with your API keys
-        echo 2. Run: mcp-debugger.exe
-        echo 3. See QUICK_START.md for examples
-        pause
-        '@ | Out-File -FilePath "$packageName/install.bat" -Encoding ascii
-        
-        # Create ZIP
-        Compress-Archive -Path $packageName -DestinationPath "$packageName.zip"
-        
-    - name: Create GitHub Release
+    - name: Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          mcp-debugger-${{ github.ref_name }}-windows-x64.zip
-        body: |
-          ## MCP Debugger ${{ github.ref_name }}
-          
-          🚀 **AI-Powered Reverse Engineering Tool**
-          
-          ### Features:
-          - Multi-AI provider support (Claude, OpenAI, Gemini)
-          - Thread-safe architecture 
-          - X64DBG plugin integration
-          - S-expression command interface
-          
-          ### Quick Start:
-          1. Download and extract ZIP
-          2. Edit `sample-config.json` with your API keys
-          3. Run `mcp-debugger.exe`
-          
-          ### Requirements:
-          - Windows 10/11 x64
-          - Visual C++ Redistributable 2022
-          
+          build/src/cli/Release/mcp-debugger.exe
+          build/src/x64dbg/Release/mcp_debugger.dp64
+        generate_release_notes: true
         draft: false
         prerelease: false
       env:

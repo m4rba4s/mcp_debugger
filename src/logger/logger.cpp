@@ -5,6 +5,15 @@
 #include <cstdarg>
 #include <filesystem>
 #include <algorithm>
+#include <string>
+#include <chrono>
+#include <mutex>
+#include <thread>
+#include <memory>
+#include <utility>
+#include <exception>
+#include <cstdio>
+#include <ctime>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -121,9 +130,9 @@ void Logger::LogWithContext(Level level, const std::string& message, const std::
 }
 
 
-void Logger::LogException(const std::exception& ex, const std::string& context) {
+void Logger::LogException(const std::exception& exception, const std::string& context) {
     std::string message = "Exception: ";
-    message += ex.what();
+    message += exception.what();
     LogWithContext(ILogger::LOG_ERROR, message, context);
 }
 
@@ -218,13 +227,13 @@ void Logger::InitializeLogFile() {
     
     log_file_.open(config_.output_path, std::ios::app);
     if (!log_file_.is_open()) {
-        std::cerr << "Failed to open log file: " << config_.output_path << std::endl;
+        std::cerr << "Failed to open log file: " << config_.output_path << '\n';
         return;
     }
     
     // Write startup message
     log_file_ << "=== MCP Debugger Log Started at " 
-              << GetTimestamp(std::chrono::system_clock::now()) << " ===" << std::endl;
+              << GetTimestamp(std::chrono::system_clock::now()) << " ===\n";
     log_file_.flush();
 }
 
@@ -349,7 +358,13 @@ std::string Logger::GetTimestamp(const std::chrono::system_clock::time_point& ti
         time.time_since_epoch()) % 1000;
     
     std::ostringstream oss;
+#ifdef _WIN32
+    struct tm local_time;
+    localtime_s(&local_time, &time_t);
+    oss << std::put_time(&local_time, "%Y-%m-%d %H:%M:%S");
+#else
     oss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
+#endif
     oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
     
     return oss.str();
@@ -374,7 +389,7 @@ void Logger::WriteToConsole(const std::string& formatted_message, Level level) {
     }
     
     SetConsoleTextAttribute(console, color);
-    std::cout << formatted_message << std::endl;
+    std::cout << formatted_message << '\n';
     SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 #else
     const char* color_code = "\033[0m"; // Reset
@@ -387,12 +402,12 @@ void Logger::WriteToConsole(const std::string& formatted_message, Level level) {
         case ILogger::LOG_FATAL: color_code = "\033[35m"; break; // Magenta
     }
     
-    std::cout << color_code << formatted_message << "\033[0m" << std::endl;
+    std::cout << color_code << formatted_message << "\033[0m\n";
 #endif
 }
 
 void Logger::WriteToFile(const std::string& formatted_message) {
-    log_file_ << formatted_message << std::endl;
+    log_file_ << formatted_message << '\n';
     current_file_size_ += formatted_message.length() + 1;
     
     if (current_file_size_ >= config_.max_file_size_mb * 1024 * 1024) {

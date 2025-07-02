@@ -23,9 +23,9 @@ public:
     void SetOutput(const std::string& path) override;
 
     // Enhanced logging methods
-    void LogFormatted(Level level, const char* format, ...);
+    void LogFormatted(Level level, const char* format, ...) override;
     void LogWithContext(Level level, const std::string& message, const std::string& context);
-    void LogException(const std::exception& ex, const std::string& context = "");
+    void LogException(const std::exception& exception, const std::string& context = "") override;
     void LogMemoryDump(const MemoryDump& dump);
     void LogDebugEvent(const DebugEvent& event);
     

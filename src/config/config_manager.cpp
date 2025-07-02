@@ -1,13 +1,16 @@
 #include "config_manager.hpp"
 #include "mcp/types.hpp"
 #include <fstream>
+#include <string>
+#include <mutex>
+#include <exception>
 
 namespace mcp {
 
-ConfigManager::ConfigManager() {}
+ConfigManager::ConfigManager() = default;
 
 Result<void> ConfigManager::LoadConfig(const std::string& path) {
-    std::lock_guard<std::mutex> lock(config_mutex_);
+    const std::lock_guard<std::mutex> lock(config_mutex_);
     config_path_ = path;
 
     std::ifstream file(path);
@@ -27,7 +30,7 @@ Result<void> ConfigManager::LoadConfig(const std::string& path) {
 }
 
 Result<void> ConfigManager::SaveConfig(const std::string& path) {
-    std::lock_guard<std::mutex> lock(config_mutex_);
+    const std::lock_guard<std::mutex> lock(config_mutex_);
     
     std::ofstream file(path);
     if (!file.is_open()) {
@@ -44,7 +47,7 @@ Result<void> ConfigManager::SaveConfig(const std::string& path) {
 }
 
 Result<void> ConfigManager::SetDefaults() {
-    std::lock_guard<std::mutex> lock(config_mutex_);
+    const std::lock_guard<std::mutex> lock(config_mutex_);
     
     // Set default configuration
     config_data_ = json{
@@ -77,7 +80,7 @@ Result<void> ConfigManager::SetDefaults() {
 }
 
 Result<std::string> ConfigManager::GetValue(const std::string& key) {
-    std::lock_guard<std::mutex> lock(config_mutex_);
+    const std::lock_guard<std::mutex> lock(config_mutex_);
     try {
         json::json_pointer ptr(key);
         json value = config_data_.at(ptr);
@@ -92,7 +95,7 @@ Result<std::string> ConfigManager::GetValue(const std::string& key) {
 }
 
 Result<void> ConfigManager::SetValue(const std::string& key, const std::string& value) {
-    std::lock_guard<std::mutex> lock(config_mutex_);
+    const std::lock_guard<std::mutex> lock(config_mutex_);
     try {
         json::json_pointer ptr(key);
         config_data_[ptr] = value;
@@ -104,12 +107,12 @@ Result<void> ConfigManager::SetValue(const std::string& key, const std::string& 
 }
 
 const Config& ConfigManager::GetConfig() const {
-    std::lock_guard<std::mutex> lock(config_mutex_);
+    const std::lock_guard<std::mutex> lock(config_mutex_);
     return config_obj_;
 }
 
 const json& ConfigManager::GetConfigJson() const {
-    std::lock_guard<std::mutex> lock(config_mutex_);
+    const std::lock_guard<std::mutex> lock(config_mutex_);
     return config_data_;
 }
 
@@ -137,7 +140,7 @@ void ConfigManager::UpdateConfigFromJson() {
 
 template<typename T>
 Result<T> ConfigManager::GetValue(const std::string& key) const {
-    std::lock_guard<std::mutex> lock(config_mutex_);
+    const std::lock_guard<std::mutex> lock(config_mutex_);
     try {
         // Use json_pointer for nested access, e.g., "/llm_providers/openai/api_key"
         json::json_pointer ptr(key);

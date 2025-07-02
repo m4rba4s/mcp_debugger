@@ -1,7 +1,12 @@
 #include "llm_engine.hpp"
 #include "ai_providers.hpp"
 #include "mcp/types.hpp"
-#include <algorithm>
+#include <memory>
+#include <utility>
+#include <future>
+#include <string>
+#include <vector>
+#include <mutex>
 
 namespace mcp {
 
@@ -55,7 +60,7 @@ Result<void> LLMEngine::SetAPIKey(const std::string& provider, const std::string
 }
 
 std::vector<std::string> LLMEngine::GetSupportedProviders() const {
-    std::lock_guard<std::mutex> lock(providers_mutex_);
+    const std::lock_guard<std::mutex> lock(providers_mutex_);
     
     std::vector<std::string> providers;
     providers.reserve(providers_.size());
@@ -87,7 +92,7 @@ void LLMEngine::RegisterProvider(std::shared_ptr<IAIProvider> provider) {
     std::string name = provider->GetName();
     
     {
-        std::lock_guard<std::mutex> lock(providers_mutex_);
+        const std::lock_guard<std::mutex> lock(providers_mutex_);
         providers_[name] = std::move(provider);
     }
     
@@ -97,7 +102,7 @@ void LLMEngine::RegisterProvider(std::shared_ptr<IAIProvider> provider) {
 }
 
 void LLMEngine::SetDefaultProvider(const std::string& provider_name) {
-    std::lock_guard<std::mutex> lock(providers_mutex_);
+    const std::lock_guard<std::mutex> lock(providers_mutex_);
     if (providers_.find(provider_name) != providers_.end()) {
         default_provider_ = provider_name;
         
@@ -108,7 +113,7 @@ void LLMEngine::SetDefaultProvider(const std::string& provider_name) {
 }
 
 Result<std::shared_ptr<IAIProvider>> LLMEngine::GetProvider(const std::string& provider_name) {
-    std::lock_guard<std::mutex> lock(providers_mutex_);
+    const std::lock_guard<std::mutex> lock(providers_mutex_);
     
     auto it = providers_.find(provider_name);
     if (it == providers_.end()) {

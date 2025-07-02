@@ -6,6 +6,14 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <memory>
+#include <utility>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <vector>
+#include <chrono>
 
 namespace mcp {
 
@@ -15,7 +23,7 @@ X64DbgBridge* X64DbgBridge::plugin_instance_ = nullptr;
 #endif
 
 X64DbgBridge::X64DbgBridge(std::shared_ptr<ILogger> logger) 
-    : logger_(logger) {
+    : logger_(std::move(logger)) {
     
     if (logger_) {
         logger_->Log(ILogger::LOG_INFO, "X64DbgBridge initialized");
@@ -27,7 +35,18 @@ X64DbgBridge::X64DbgBridge(std::shared_ptr<ILogger> logger)
 }
 
 X64DbgBridge::~X64DbgBridge() {
-    Disconnect();
+    // Avoid virtual call in destructor - call DisconnectInternal directly
+    if (connected_.load()) {
+        event_thread_running_ = false;
+        event_condition_.notify_all();
+        
+        if (event_thread_.joinable()) {
+            event_thread_.join();
+        }
+        
+        DisconnectInternal();
+        connected_ = false;
+    }
     
     if (event_thread_running_) {
         event_thread_running_ = false;
@@ -51,7 +70,7 @@ X64DbgBridge::~X64DbgBridge() {
 }
 
 Result<void> X64DbgBridge::Connect() {
-    std::lock_guard<std::mutex> lock(connection_mutex_);
+    const std::lock_guard<std::mutex> lock(connection_mutex_);
     
     if (connected_) {
         return Result<void>::Success();
@@ -92,7 +111,7 @@ Result<void> X64DbgBridge::Connect() {
 }
 
 Result<void> X64DbgBridge::Disconnect() {
-    std::lock_guard<std::mutex> lock(connection_mutex_);
+    const std::lock_guard<std::mutex> lock(connection_mutex_);
     
     if (!connected_) {
         return Result<void>::Success();
@@ -191,7 +210,7 @@ Result<void> X64DbgBridge::SetBreakpoint(uintptr_t address) {
 }
 
 void X64DbgBridge::RegisterEventHandler(std::function<void(const DebugEvent&)> handler) {
-    std::lock_guard<std::mutex> lock(handlers_mutex_);
+    const std::lock_guard<std::mutex> lock(handlers_mutex_);
     
     EventHandlerEntry entry;
     entry.id = next_handler_id_++;
@@ -209,7 +228,7 @@ bool X64DbgBridge::IsConnected() const {
 }
 
 Result<void> X64DbgBridge::SetConnectionMode(ConnectionMode mode) {
-    std::lock_guard<std::mutex> lock(connection_mutex_);
+    const std::lock_guard<std::mutex> lock(connection_mutex_);
     
     if (connected_) {
         return Result<void>::Error("Cannot change connection mode while connected");
@@ -220,13 +239,13 @@ Result<void> X64DbgBridge::SetConnectionMode(ConnectionMode mode) {
 }
 
 Result<void> X64DbgBridge::SetDebuggerPath(const std::string& path) {
-    std::lock_guard<std::mutex> lock(connection_mutex_);
+    const std::lock_guard<std::mutex> lock(connection_mutex_);
     debugger_path_ = path;
     return Result<void>::Success();
 }
 
 Result<void> X64DbgBridge::SetConnectionTimeout(int timeout_ms) {
-    std::lock_guard<std::mutex> lock(connection_mutex_);
+    const std::lock_guard<std::mutex> lock(connection_mutex_);
     connection_timeout_ms_ = timeout_ms;
     return Result<void>::Success();
 }
@@ -454,7 +473,7 @@ void X64DbgBridge::EventProcessingLoop() {
 }
 
 void X64DbgBridge::NotifyEventHandlers(const DebugEvent& event) {
-    std::lock_guard<std::mutex> lock(handlers_mutex_);
+    const std::lock_guard<std::mutex> lock(handlers_mutex_);
     
     for (const auto& handler_entry : event_handlers_) {
         try {

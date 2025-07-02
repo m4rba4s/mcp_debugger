@@ -1,0 +1,72 @@
+[
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/analyzer/dump_analyzer.cpp",
+    "file": "src/analyzer/dump_analyzer.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/cli/cli_interface.cpp",
+    "file": "src/cli/cli_interface.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/cli/main.cpp",
+    "file": "src/cli/main.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/config/config_manager.cpp",
+    "file": "src/config/config_manager.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/core/core_engine.cpp",
+    "file": "src/core/core_engine.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/llm/ai_providers.cpp",
+    "file": "src/llm/ai_providers.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/llm/llm_engine.cpp",
+    "file": "src/llm/llm_engine.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/logger/logger.cpp",
+    "file": "src/logger/logger.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/parser/sexpr_parser.cpp",
+    "file": "src/parser/sexpr_parser.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/plugin/plugin_interface.cpp",
+    "file": "src/plugin/plugin_interface.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/security/security_manager.cpp",
+    "file": "src/security/security_manager.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/x64dbg/plugin_exports.cpp",
+    "file": "src/x64dbg/plugin_exports.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/x64dbg/x64dbg_bridge.cpp",
+    "file": "src/x64dbg/x64dbg_bridge.cpp"
+  },
+  {
+    "directory": "C:/Users/fvck0/OneDrive/Documents/mcp_debugger-main",
+    "command": "clang++ -std=c++17 -Iinclude -Isrc -DWIN32 -D_WIN32 -DNOMINMAX -DWIN32_LEAN_AND_MEAN -c src/x64dbg/x64dbg_plugin.cpp",
+    "file": "src/x64dbg/x64dbg_plugin.cpp"
+  }
+] 

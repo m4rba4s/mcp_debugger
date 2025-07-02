@@ -5,17 +5,15 @@ enable_testing()
 
 # Add our test executable
 add_executable(core_tests
-    core/core_engine_tests.cpp
+    simple_test.cpp
+    core_engine_improved_test.cpp
 )
 
 # Link necessary libraries to the test executable
 target_link_libraries(core_tests PRIVATE
     GTest::gtest_main
     mcp-core
-    mcp-llm
-    mcp-config
     mcp-logger
-    mcp-x64dbg
 )
 
 # Include current directory to find mock headers

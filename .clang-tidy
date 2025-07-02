@@ -67,6 +67,5 @@ CheckOptions:
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'
-AnalyzeTemporaryDtors: false
 FormatStyle: file
 User: mcp_debugger 

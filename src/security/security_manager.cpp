@@ -1,18 +1,23 @@
 #include "security_manager.hpp"
-#include <random>
 #include <algorithm>
 #include <fstream>
 #include <regex>
 #include <functional>
+#include <string>
+#include <memory>
+#include <utility>
+#include <mutex>
+#include <vector>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #include <wincrypt.h>
 #include <bcrypt.h>
 #pragma comment(lib, "bcrypt.lib")
 #pragma comment(lib, "advapi32.lib")
-#undef WIN32_LEAN_AND_MEAN
 #else
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -22,7 +27,7 @@
 namespace mcp {
 
 SecurityManager::SecurityManager(std::shared_ptr<ILogger> logger) 
-    : logger_(logger) {
+    : logger_(std::move(logger)) {
     
     // Generate default encryption key from system entropy
     auto key_result = GenerateRandomBytes(32); // 256-bit key
@@ -80,7 +85,7 @@ Result<void> SecurityManager::StoreCredential(const std::string& key, const std:
     
     // Store encrypted credential
     {
-        std::lock_guard<std::mutex> lock(credentials_mutex_);
+        const std::lock_guard<std::mutex> lock(credentials_mutex_);
         encrypted_credentials_[key] = encrypted_value;
     }
     
@@ -107,7 +112,7 @@ Result<std::string> SecurityManager::RetrieveCredential(const std::string& key) 
     
     // Retrieve encrypted credential
     {
-        std::lock_guard<std::mutex> lock(credentials_mutex_);
+        const std::lock_guard<std::mutex> lock(credentials_mutex_);
         auto it = encrypted_credentials_.find(key);
         if (it == encrypted_credentials_.end()) {
             return Result<std::string>::Error("Credential not found: " + key);
@@ -231,7 +236,7 @@ Result<void> SecurityManager::SaveCredentialsToFile(const std::string& filename)
 }
 
 void SecurityManager::ClearCredentials() {
-    std::lock_guard<std::mutex> lock(credentials_mutex_);
+    const std::lock_guard<std::mutex> lock(credentials_mutex_);
     
     // Clear encrypted data
     for (auto& credential_pair : encrypted_credentials_) {

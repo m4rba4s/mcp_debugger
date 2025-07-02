@@ -8,18 +8,41 @@
 
 namespace mcp {
 
-class CoreEngine : public ICoreEngine {
+/**
+ * @brief Core engine orchestrates all MCP Debugger modules with thread-safe initialization
+ * 
+ * This is the main orchestration class that manages all subsystems:
+ * - Logger, LLM Engine, x64dbg Bridge, Config Manager, etc.
+ * - Thread-safe initialization with dependency injection support
+ * - Lock-free access to modules after initialization (performance optimization)
+ * - Safe async operations with proper object lifetime management
+ */
+class CoreEngine : public ICoreEngine, public std::enable_shared_from_this<CoreEngine> {
 public:
-    // Default constructor 
+    /**
+     * @brief Default constructor - modules will be created during Initialize()
+     */
     CoreEngine();
     
-    // Constructor for dependency injection
+    /**
+     * @brief Constructor with dependency injection for testing/customization
+     * @param logger Custom logger implementation
+     * @param llm_engine Custom LLM engine implementation  
+     * @param x64dbg_bridge Custom x64dbg bridge implementation
+     */
     CoreEngine(std::shared_ptr<ILogger> logger,
                std::shared_ptr<ILLMEngine> llm_engine,
                std::shared_ptr<IX64DbgBridge> x64dbg_bridge);
 
+    /**
+     * @brief Destructor - automatically calls Shutdown() if needed
+     */
     ~CoreEngine();
 
+    /**
+     * @brief Analyzes current debugging context using AI
+     * @note This method is async and uses detached threads with safe object lifetime
+     */
     void AnalyzeCurrentContext();
 
     // ICoreEngine implementation
@@ -45,6 +68,7 @@ private:
 
     mutable std::mutex engine_mutex_;
     std::atomic<bool> initialized_{false};
+    std::atomic<bool> modules_immutable_{false}; // True after successful init - no more locking needed
     
     // Core modules - initialized in dependency order
     std::shared_ptr<IConfigManager> config_manager_;

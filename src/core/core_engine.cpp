@@ -7,14 +7,17 @@
 #include "../analyzer/dump_analyzer.hpp"
 #include "../security/security_manager.hpp"
 
-#include <filesystem>
+#include <memory>
+#include <mutex>
+#include <thread>
+#include <future>
+#include <string>
+#include <exception>
 
 namespace mcp {
 
 // Default constructor
-CoreEngine::CoreEngine() {
-    // Will be initialized via Initialize() method
-}
+CoreEngine::CoreEngine() = default;
 
 // Constructor for dependency injection
 CoreEngine::CoreEngine(std::shared_ptr<ILogger> logger,
@@ -35,7 +38,7 @@ CoreEngine::~CoreEngine() {
 }
 
 Result<void> CoreEngine::Initialize() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     
     if (initialized_) {
         return Result<void>::Success();
@@ -82,6 +85,7 @@ Result<void> CoreEngine::Initialize() {
     }
     
     initialized_ = true;
+    modules_immutable_.store(true, std::memory_order_release); // Modules are now immutable
     
     if (logger_) {
         logger_->Log(ILogger::LOG_INFO, "CoreEngine initialized successfully.");
@@ -91,7 +95,7 @@ Result<void> CoreEngine::Initialize() {
 }
 
 Result<void> CoreEngine::Shutdown() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     
     if (!initialized_) {
         return Result<void>::Success();
@@ -108,37 +112,59 @@ Result<void> CoreEngine::Shutdown() {
 }
 
 std::shared_ptr<ILLMEngine> CoreEngine::GetLLMEngine() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    // Fast path: no locking after initialization is complete
+    if (modules_immutable_.load(std::memory_order_acquire)) {
+        return llm_engine_;
+    }
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     return llm_engine_;
 }
 
 std::shared_ptr<IX64DbgBridge> CoreEngine::GetDebugBridge() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    if (modules_immutable_.load(std::memory_order_acquire)) {
+        return x64dbg_bridge_;
+    }
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     return x64dbg_bridge_;
 }
 
 std::shared_ptr<IExprParser> CoreEngine::GetExprParser() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    if (modules_immutable_.load(std::memory_order_acquire)) {
+        return expr_parser_;
+    }
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     return expr_parser_;
 }
 
 std::shared_ptr<IConfigManager> CoreEngine::GetConfigManager() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    if (modules_immutable_.load(std::memory_order_acquire)) {
+        return config_manager_;
+    }
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     return config_manager_;
 }
 
 std::shared_ptr<ILogger> CoreEngine::GetLogger() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    if (modules_immutable_.load(std::memory_order_acquire)) {
+        return logger_;
+    }
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     return logger_;
 }
 
 std::shared_ptr<IDumpAnalyzer> CoreEngine::GetDumpAnalyzer() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    if (modules_immutable_.load(std::memory_order_acquire)) {
+        return dump_analyzer_;
+    }
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     return dump_analyzer_;
 }
 
 std::shared_ptr<ISecurityManager> CoreEngine::GetSecurityManager() {
-    std::lock_guard<std::mutex> lock(engine_mutex_);
+    if (modules_immutable_.load(std::memory_order_acquire)) {
+        return security_manager_;
+    }
+    const std::lock_guard<std::mutex> lock(engine_mutex_);
     return security_manager_;
 }
 
@@ -310,33 +336,46 @@ void CoreEngine::AnalyzeCurrentContext() {
     }
     std::future<Result<LLMResponse>> future_response = llm_engine_->SendRequest(request);
 
-    // 5. Handle the response asynchronously
-    std::thread([this, current_address, &future_response]() {
-        auto result = future_response.get();
-        if (result.IsSuccess()) {
-            const auto& response = result.Value();
-            if (logger_) {
-                logger_->Log(ILogger::LOG_INFO, "AI Analysis Received: " + response.content);
-            }
+    // 5. Handle the response asynchronously with safe object lifetime
+    auto self = shared_from_this();
+    std::thread([self, current_address, future_response = std::move(future_response)]() mutable {
+        try {
+            auto result = future_response.get();
+            if (result.IsSuccess()) {
+                const auto& response = result.Value();
+                if (self->logger_) {
+                    self->logger_->Log(ILogger::LOG_INFO, "AI Analysis Received: " + response.content);
+                }
 
-            // Escape the response for the command
-            std::string escaped_comment = response.content;
-            // Basic escaping: replace quotes. A real implementation would be more robust.
-            size_t pos = 0;
-            while ((pos = escaped_comment.find('"', pos)) != std::string::npos) {
-                 escaped_comment.replace(pos, 1, "\"\"");
-                 pos += 2;
-            }
-            
-            std::string command = "SetCommentAt " + std::to_string(current_address) + ", \"" + escaped_comment + "\"";
-            x64dbg_bridge_->ExecuteCommand(command);
-            if (logger_) {
-                logger_->Log(ILogger::LOG_INFO, "Set comment at address " + std::to_string(current_address));
-            }
+                // Escape the response for the command
+                std::string escaped_comment = response.content;
+                // Basic escaping: replace quotes. A real implementation would be more robust.
+                size_t pos = 0;
+                while ((pos = escaped_comment.find('"', pos)) != std::string::npos) {
+                     escaped_comment.replace(pos, 1, "\"\"");
+                     pos += 2;
+                }
+                
+                std::string command = "SetCommentAt " + std::to_string(current_address) + ", \"" + escaped_comment + "\"";
+                if (self->x64dbg_bridge_) {
+                    self->x64dbg_bridge_->ExecuteCommand(command);
+                }
+                if (self->logger_) {
+                    self->logger_->Log(ILogger::LOG_INFO, "Set comment at address " + std::to_string(current_address));
+                }
 
-        } else {
-            if (logger_) {
-                logger_->Log(ILogger::LOG_ERROR, "AI analysis failed: " + result.Error());
+            } else {
+                if (self->logger_) {
+                    self->logger_->Log(ILogger::LOG_ERROR, "AI analysis failed: " + result.Error());
+                }
+            }
+        } catch (const std::future_error& ex) {
+            if (self->logger_) {
+                self->logger_->Log(ILogger::LOG_ERROR, "Future error in AI analysis: " + std::string(ex.what()));
+            }
+        } catch (const std::exception& ex) {
+            if (self->logger_) {
+                self->logger_->Log(ILogger::LOG_ERROR, "Exception in AI analysis thread: " + std::string(ex.what()));
             }
         }
     }).detach();

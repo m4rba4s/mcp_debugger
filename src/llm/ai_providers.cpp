@@ -2,6 +2,10 @@
 #include <nlohmann/json.hpp>
 #include <future>
 #include <httplib.h>
+#include <string>
+#include <memory>
+#include <utility>
+#include <unordered_map>
 
 namespace mcp {
 

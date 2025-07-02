@@ -69,5 +69,4 @@ WarningsAsErrors: ''
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
 FormatStyle: file
-User: mcp_debugger
-CheckOptions: [] 
+User: mcp_debugger 

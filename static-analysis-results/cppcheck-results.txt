@@ -1,0 +1,1 @@
+﻿cppcheck: error: unrecognized command line option: "--config-file=cppcheck.cfg".

@@ -12,9 +12,9 @@ LLMEngine::LLMEngine(std::shared_ptr<ILogger> logger)
 
 void LLMEngine::InitializeDefaultProviders() {
     // Register default AI providers
-    RegisterProvider(std::make_unique<ClaudeProvider>(logger_));
-    RegisterProvider(std::make_unique<OpenAIProvider>(logger_));
-    RegisterProvider(std::make_unique<GeminiProvider>(logger_));
+    RegisterProvider(std::make_shared<ClaudeProvider>(logger_));
+    RegisterProvider(std::make_shared<OpenAIProvider>(logger_));
+    RegisterProvider(std::make_shared<GeminiProvider>(logger_));
     
     if (logger_) {
         logger_->Log(ILogger::LOG_INFO, "LLMEngine initialized with 3 providers");
@@ -35,7 +35,7 @@ std::future<Result<LLMResponse>> LLMEngine::SendRequest(const LLMRequest& reques
         return promise.get_future();
     }
     
-    IAIProvider* provider = provider_result.Value();
+    auto provider = provider_result.Value();
     return provider->SendRequest(request);
 }
 
@@ -81,7 +81,7 @@ Result<void> LLMEngine::ValidateConnection(const std::string& provider) {
     return Result<void>::Success();
 }
 
-void LLMEngine::RegisterProvider(std::unique_ptr<IAIProvider> provider) {
+void LLMEngine::RegisterProvider(std::shared_ptr<IAIProvider> provider) {
     if (!provider) return;
     
     std::string name = provider->GetName();
@@ -107,15 +107,15 @@ void LLMEngine::SetDefaultProvider(const std::string& provider_name) {
     }
 }
 
-Result<IAIProvider*> LLMEngine::GetProvider(const std::string& provider_name) {
+Result<std::shared_ptr<IAIProvider>> LLMEngine::GetProvider(const std::string& provider_name) {
     std::lock_guard<std::mutex> lock(providers_mutex_);
     
     auto it = providers_.find(provider_name);
     if (it == providers_.end()) {
-        return Result<IAIProvider*>::Error("Provider not found: " + provider_name);
+        return Result<std::shared_ptr<IAIProvider>>::Error("Provider not found: " + provider_name);
     }
     
-    return Result<IAIProvider*>::Success(it->second.get());
+    return Result<std::shared_ptr<IAIProvider>>::Success(it->second);
 }
 
 } // namespace mcp 

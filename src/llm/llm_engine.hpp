@@ -30,7 +30,7 @@ public:
     Result<void> ValidateConnection(const std::string& provider) override;
 
     // Provider management
-    void RegisterProvider(std::unique_ptr<IAIProvider> provider);
+    void RegisterProvider(std::shared_ptr<IAIProvider> provider);
     void SetDefaultProvider(const std::string& provider_name);
     
     // Request management
@@ -42,13 +42,12 @@ private:
     std::shared_ptr<ILogger> logger_;
     
     mutable std::mutex providers_mutex_;
-    std::unordered_map<std::string, std::unique_ptr<IAIProvider>> providers_;
+    std::unordered_map<std::string, std::shared_ptr<IAIProvider>> providers_;
     std::string default_provider_ = "claude";
-        // Helper methods
-    Result<IAIProvider*> GetProvider(const std::string& provider_name);
+    
+    // Helper methods
+    Result<std::shared_ptr<IAIProvider>> GetProvider(const std::string& provider_name);
     void InitializeDefaultProviders();
 };
-
-
 
 } // namespace mcp

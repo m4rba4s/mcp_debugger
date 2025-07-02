@@ -20,22 +20,26 @@ OpenAIProvider::OpenAIProvider(std::shared_ptr<ILogger> logger)
     : BaseAIProvider("openai", "api.openai.com", std::move(logger)) {}
 
 std::future<Result<LLMResponse>> OpenAIProvider::SendRequest(const LLMRequest& request) {
-    return std::async(std::launch::async, [this, request] {
-        auto cli = httplib::Client(host_);
-        
-        httplib::Headers headers;
-        headers.emplace("Authorization", "Bearer " + api_key_);
-        headers.emplace("Content-Type", "application/json");
-        
-        std::string payload = FormatRequest(request);
-        auto res = cli.Post("/v1/chat/completions", headers, payload, "application/json");
-        
-        if (!res) {
-            return Result<LLMResponse>::Error("HTTP request failed");
-        }
-        
-        return ParseResponse(res->body, res->status);
+    return ExecuteAsync([this, request]() {
+        return SendRequestImpl(request);
     });
+}
+
+Result<LLMResponse> OpenAIProvider::SendRequestImpl(const LLMRequest& request) {
+    auto cli = httplib::Client(host_);
+    
+    httplib::Headers headers;
+    headers.emplace("Authorization", "Bearer " + api_key_);
+    headers.emplace("Content-Type", "application/json");
+    
+    std::string payload = FormatRequest(request);
+    auto res = cli.Post("/v1/chat/completions", headers, payload, "application/json");
+    
+    if (!res) {
+        return Result<LLMResponse>::Error("HTTP request failed");
+    }
+    
+    return ParseResponse(res->body, res->status);
 }
 
 std::string OpenAIProvider::FormatRequest(const LLMRequest& r) {
@@ -78,24 +82,28 @@ std::unordered_map<std::string, std::string> ClaudeProvider::GetCommonHeaders() 
 }
 
 std::future<Result<LLMResponse>> ClaudeProvider::SendRequest(const LLMRequest& request) {
-    return std::async(std::launch::async, [this, request] {
-        auto cli = httplib::Client(host_);
-        
-        auto headers_map = GetCommonHeaders();
-        httplib::Headers headers;
-        for (const auto& [key, value] : headers_map) {
-            headers.emplace(key, value);
-        }
-        
-        std::string payload = FormatRequest(request);
-        auto res = cli.Post("/v1/messages", headers, payload, "application/json");
-        
-        if (!res) {
-            return Result<LLMResponse>::Error("HTTP request failed");
-        }
-        
-        return ParseResponse(res->body, res->status);
+    return ExecuteAsync([this, request]() {
+        return SendRequestImpl(request);
     });
+}
+
+Result<LLMResponse> ClaudeProvider::SendRequestImpl(const LLMRequest& request) {
+    auto cli = httplib::Client(host_);
+    
+    auto headers_map = GetCommonHeaders();
+    httplib::Headers headers;
+    for (const auto& [key, value] : headers_map) {
+        headers.emplace(key, value);
+    }
+    
+    std::string payload = FormatRequest(request);
+    auto res = cli.Post("/v1/messages", headers, payload, "application/json");
+    
+    if (!res) {
+        return Result<LLMResponse>::Error("HTTP request failed");
+    }
+    
+    return ParseResponse(res->body, res->status);
 }
 
 std::string ClaudeProvider::FormatRequest(const LLMRequest& r) {
@@ -127,19 +135,23 @@ GeminiProvider::GeminiProvider(std::shared_ptr<ILogger> logger)
     : BaseAIProvider("gemini", "generativelanguage.googleapis.com", std::move(logger)) {}
 
 std::future<Result<LLMResponse>> GeminiProvider::SendRequest(const LLMRequest& request) {
-    return std::async(std::launch::async, [this, request] {
-        auto cli = httplib::Client(host_);
-        
-        std::string payload = FormatRequest(request);
-        std::string path = "/v1beta/models/gemini-1.5-pro-latest:generateContent?key=" + api_key_;
-        auto res = cli.Post(path, payload, "application/json");
-        
-        if (!res) {
-            return Result<LLMResponse>::Error("HTTP request failed");
-        }
-        
-        return ParseResponse(res->body, res->status);
+    return ExecuteAsync([this, request]() {
+        return SendRequestImpl(request);
     });
+}
+
+Result<LLMResponse> GeminiProvider::SendRequestImpl(const LLMRequest& request) {
+    auto cli = httplib::Client(host_);
+    
+    std::string payload = FormatRequest(request);
+    std::string path = "/v1beta/models/gemini-1.5-pro-latest:generateContent?key=" + api_key_;
+    auto res = cli.Post(path, payload, "application/json");
+    
+    if (!res) {
+        return Result<LLMResponse>::Error("HTTP request failed");
+    }
+    
+    return ParseResponse(res->body, res->status);
 }
 
 std::string GeminiProvider::FormatRequest(const LLMRequest& r) {

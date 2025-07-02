@@ -460,7 +460,7 @@ Result<std::string> CLIInterface::HandleLogCommand(const std::vector<SExpression
     return Result<std::string>::Success("Logged: " + message);
 }
 
-Result<std::string> CLIInterface::HandleExitCommand(const std::vector<SExpression>& args) {
+Result<std::string> CLIInterface::HandleExitCommand(const std::vector<SExpression>& /* args */) {
     PrintInfo("Goodbye!");
     StopREPL();
     return Result<std::string>::Success("Exiting...");
@@ -479,7 +479,7 @@ void CLIInterface::RegisterBuiltinCommands() {
     builtin_commands_["disconnect"] = [this](const std::vector<SExpression>& args) { return BuiltinDisconnect(args); };
 }
 
-Result<std::string> CLIInterface::BuiltinHelp(const std::vector<SExpression>& args) {
+Result<std::string> CLIInterface::BuiltinHelp(const std::vector<SExpression>& /* args */) {
     std::ostringstream help;
     help << "MCP Debugger - Multi-Context Prompt Debugging Utility\n\n";
     help << "Built-in Commands (prefix with :):\n";
@@ -506,12 +506,12 @@ Result<std::string> CLIInterface::BuiltinHelp(const std::vector<SExpression>& ar
     return Result<std::string>::Success(help.str());
 }
 
-Result<std::string> CLIInterface::BuiltinQuit(const std::vector<SExpression>& args) {
+Result<std::string> CLIInterface::BuiltinQuit(const std::vector<SExpression>& /* args */) {
     StopREPL();
     return Result<std::string>::Success("Goodbye!");
 }
 
-Result<std::string> CLIInterface::BuiltinStatus(const std::vector<SExpression>& args) {
+Result<std::string> CLIInterface::BuiltinStatus(const std::vector<SExpression>& /* args */) {
     std::ostringstream status;
     status << "MCP Debugger Status:\n";
     status << "  Version: " << GetVersionString() << "\n";
@@ -740,7 +740,7 @@ Result<void> CLIInterface::ParseCommandLine(int argc, const char* argv[]) {
     return Result<void>::Success();
 }
 
-Result<void> CLIInterface::LoadConfig(const std::string& config_file) {
+Result<void> CLIInterface::LoadConfig(const std::string& /* config_file */) {
     // TODO: Load configuration from file
     return Result<void>::Success();
 }
@@ -784,11 +784,11 @@ void CLIInterface::ClearSession() {
     command_history_.clear();
 }
 
-void CLIInterface::SaveSession(const std::string& filename) {
+void CLIInterface::SaveSession(const std::string& /* filename */) {
     // TODO: Implement session saving to file
 }
 
-Result<void> CLIInterface::LoadSession(const std::string& filename) {
+Result<void> CLIInterface::LoadSession(const std::string& /* filename */) {
     // TODO: Implement session loading from file
     return Result<void>::Success();
 }
@@ -839,7 +839,7 @@ Result<std::string> CLIInterface::HandleConfigCommand(const std::vector<SExpress
     return Result<std::string>::Error("Config modification not yet implemented");
 }
 
-Result<std::string> CLIInterface::BuiltinClear(const std::vector<SExpression>& args) {
+Result<std::string> CLIInterface::BuiltinClear(const std::vector<SExpression>& /* args */) {
 #ifdef _WIN32
     system("cls");
 #else
@@ -848,7 +848,7 @@ Result<std::string> CLIInterface::BuiltinClear(const std::vector<SExpression>& a
     return Result<std::string>::Success("Screen cleared");
 }
 
-Result<std::string> CLIInterface::BuiltinHistory(const std::vector<SExpression>& args) {
+Result<std::string> CLIInterface::BuiltinHistory(const std::vector<SExpression>& /* args */) {
     std::ostringstream history_str;
     history_str << "Command History (" << command_history_.size() << " entries):\n";
     
@@ -887,7 +887,7 @@ Result<std::string> CLIInterface::BuiltinConfig(const std::vector<SExpression>& 
     return HandleConfigCommand(args);
 }
 
-Result<std::string> CLIInterface::BuiltinConnect(const std::vector<SExpression>& args) {
+Result<std::string> CLIInterface::BuiltinConnect(const std::vector<SExpression>& /* args */) {
     if (!core_engine_) {
         return Result<std::string>::Error("Core engine not available");
     }
@@ -909,7 +909,7 @@ Result<std::string> CLIInterface::BuiltinConnect(const std::vector<SExpression>&
     }
 }
 
-Result<std::string> CLIInterface::BuiltinDisconnect(const std::vector<SExpression>& args) {
+Result<std::string> CLIInterface::BuiltinDisconnect(const std::vector<SExpression>& /* args */) {
     if (!core_engine_) {
         return Result<std::string>::Error("Core engine not available");
     }

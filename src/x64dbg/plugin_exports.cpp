@@ -8,7 +8,7 @@
 extern "C" {
 
 // Plugin initialization
-__declspec(dllexport) bool pluginit(int plugin_handle) {
+__declspec(dllexport) bool pluginit(int /* plugin_handle */) {
     // TODO: Initialize MCP plugin
     // - Setup communication with main MCP process
     // - Register plugin commands
@@ -25,7 +25,7 @@ __declspec(dllexport) bool plugstop() {
 }
 
 // Plugin setup (called after init)
-__declspec(dllexport) void plugsetup(void* setup_struct) {
+__declspec(dllexport) void plugsetup(void* /* setup_struct */) {
     // TODO: Setup plugin UI and commands
     // - Add menu items to x64dbg
     // - Register command callbacks
@@ -35,7 +35,7 @@ __declspec(dllexport) void plugsetup(void* setup_struct) {
 } // extern "C"
 
 // DLL entry point
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
+BOOL APIENTRY DllMain(HMODULE /* hModule */, DWORD ul_reason_for_call, LPVOID /* lpReserved */) {
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH:
             // Plugin DLL loaded

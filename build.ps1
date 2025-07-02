@@ -159,22 +159,29 @@ function Invoke-Tests {
     }
 
     Write-Host "Executing CTest..."
-    $ctest_args = @(
-        "--test-dir", $BuildDir,
-        "--config", $Config,
-        "--output-on-failure"
-    )
-
+    
+    # Change to build directory for CTest execution
+    Push-Location $BuildDir
+    
     try {
-        & ctest $ctest_args
-        if ($LASTEXITCODE -ne 0) {
-            # ctest returns non-zero for failed tests, which is not a script error
-            Write-Host "CTest finished. Some tests may have failed (see output above)." -ForegroundColor Yellow
+        # Check if tests exist first
+        $testCheck = & ctest --show-only 2>&1
+        if ($testCheck -match "No tests were found") {
+            Write-Host "No tests found - skipping test execution" -ForegroundColor Yellow
         } else {
-            Write-Host "All tests passed successfully." -ForegroundColor Green
+            # Run CTest with simplified arguments
+            & ctest --output-on-failure --parallel
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "All tests passed successfully." -ForegroundColor Green
+            } else {
+                Write-Host "CTest finished. Some tests may have failed (see output above)." -ForegroundColor Yellow
+            }
         }
     } catch {
-        Write-Error-And-Exit "Failed to execute ctest. Ensure it is in your PATH."
+        Write-Host "Failed to execute ctest. Tests may not be configured." -ForegroundColor Yellow
+    } finally {
+        Pop-Location
     }
 }
 

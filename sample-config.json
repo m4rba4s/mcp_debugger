@@ -1,0 +1,65 @@
+{
+  "api_configs": {
+    "claude": {
+      "model": "claude-3-sonnet-20240229",
+      "endpoint": "https://api.anthropic.com/v1/messages",
+      "timeout_ms": 30000,
+      "max_retries": 3,
+      "validate_ssl": true
+    },
+    "openai": {
+      "model": "gpt-4",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "timeout_ms": 30000,
+      "max_retries": 3,
+      "validate_ssl": true
+    },
+    "gemini": {
+      "model": "gemini-pro",
+      "endpoint": "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent",
+      "timeout_ms": 30000,
+      "max_retries": 3,
+      "validate_ssl": true
+    }
+  },
+  "debug_config": {
+    "x64dbg_path": "C:\\x64dbg\\x64dbg.exe",
+    "auto_connect": false,
+    "connection_timeout_ms": 5000,
+    "startup_commands": [
+      "bp main",
+      "log \"MCP Debugger connected\""
+    ]
+  },
+  "log_config": {
+    "level": "INFO",
+    "file_path": "mcp_debugger.log",
+    "max_size_mb": 10,
+    "console_output": true
+  },
+  "security_config": {
+    "credential_store_path": "credentials.encrypted",
+    "require_api_key_validation": true,
+    "encrypt_credentials": true,
+    "key_rotation_days": 90
+  },
+  "log_level": "info",
+  "default_provider": "claude",
+  "llm_providers": {
+    "openai": {
+      "api_key": "YOUR_OPENAI_API_KEY_HERE",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-3.5-turbo"
+    },
+    "claude": {
+      "api_key": "YOUR_CLAUDE_API_KEY_HERE",
+      "base_url": "https://api.anthropic.com",
+      "model": "claude-3-sonnet-20240229"
+    },
+    "gemini": {
+      "api_key": "YOUR_GEMINI_API_KEY_HERE",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "model": "gemini-pro"
+    }
+  }
+}

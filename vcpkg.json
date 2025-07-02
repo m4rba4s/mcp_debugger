@@ -1,0 +1,38 @@
+{
+  "name": "mcp-debugger",
+  "version": "1.0.0",
+  "description": "AI-Powered Multi-Context Prompt Debugging Utility for reverse engineering",
+  "homepage": "https://github.com/your-repo/mcp-debugger",
+  "documentation": "https://github.com/your-repo/mcp-debugger/wiki",
+  "license": "MIT",
+  "supports": "windows & x64",
+  "dependencies": [
+    {
+      "name": "nlohmann-json",
+      "version>=": "3.11.0"
+    },
+    {
+      "name": "cpp-httplib",
+      "version>=": "0.14.0"
+    },
+    {
+      "name": "gtest",
+      "version>=": "1.14.0"
+    }
+  ],
+  "features": {
+    "tests": {
+      "description": "Build with unit tests",
+      "dependencies": [
+        "gtest",
+        "gmock"
+      ]
+    },
+    "benchmarks": {
+      "description": "Build with performance benchmarks",
+      "dependencies": [
+        "benchmark"
+      ]
+    }
+  }
+} 

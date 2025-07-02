@@ -1,0 +1,180 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run at 2 AM UTC daily
+  workflow_dispatch:     # Allow manual trigger
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  nightly-build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better version info
+        
+    - name: Setup vcpkg
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Get version info
+      id: version
+      run: |
+        $commitHash = git rev-parse --short HEAD
+        $date = Get-Date -Format "yyyyMMdd"
+        $version = "nightly-$date-$commitHash"
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "Building version: $version"
+        
+    - name: Bootstrap and install dependencies
+      run: |
+        .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+        .\vcpkg\vcpkg.exe install nlohmann-json cpp-httplib gtest --triplet x64-windows
+        
+    - name: Configure with debug info
+      run: |
+        cmake -B build -S . `
+          -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+          -DBUILD_TESTS=ON `
+          -DCMAKE_CXX_FLAGS="/DDEBUG_BUILD"
+          
+    - name: Build with timing
+      run: |
+        $buildStart = Get-Date
+        cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+        $buildEnd = Get-Date
+        $buildTime = ($buildEnd - $buildStart).TotalMinutes
+        Write-Host "Build completed in $buildTime minutes"
+        
+    - name: Run comprehensive tests
+      working-directory: build
+      run: |
+        # Run tests with verbose output
+        ctest --config ${{ env.BUILD_TYPE }} --verbose --parallel
+        
+        # Test basic functionality
+        Write-Host "Testing basic functionality..."
+        ..\build\src\cli\Release\mcp-debugger.exe -c ":status"
+        
+        # Test help system
+        ..\build\src\cli\Release\mcp-debugger.exe --help
+        
+    - name: Performance benchmarks
+      run: |
+        Write-Host "Running performance benchmarks..."
+        
+        # Startup time test
+        $iterations = 5
+        $times = @()
+        
+        for ($i = 1; $i -le $iterations; $i++) {
+          $start = Get-Date
+          .\build\src\cli\Release\mcp-debugger.exe -c ":status" | Out-Null
+          $end = Get-Date
+          $duration = ($end - $start).TotalMilliseconds
+          $times += $duration
+          Write-Host "Iteration $i`: $duration ms"
+        }
+        
+        $avgTime = ($times | Measure-Object -Average).Average
+        $maxTime = ($times | Measure-Object -Maximum).Maximum
+        
+        Write-Host "Average startup time: $avgTime ms"
+        Write-Host "Maximum startup time: $maxTime ms"
+        
+        # Save benchmark results
+        @{
+          date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+          commit = git rev-parse --short HEAD
+          avg_startup_ms = $avgTime
+          max_startup_ms = $maxTime
+          iterations = $iterations
+        } | ConvertTo-Json | Out-File "benchmark-results.json"
+        
+    - name: Memory usage analysis
+      run: |
+        Write-Host "Analyzing memory usage..."
+        
+        # Get executable size
+        $exeSize = (Get-Item "build\src\cli\Release\mcp-debugger.exe").Length
+        $pluginSize = (Get-Item "build\src\x64dbg\Release\mcp_debugger.dp64").Length
+        
+        Write-Host "Executable size: $([math]::Round($exeSize/1KB, 2)) KB"
+        Write-Host "Plugin size: $([math]::Round($pluginSize/1KB, 2)) KB"
+        
+        # Save size info
+        @{
+          exe_size_kb = [math]::Round($exeSize/1KB, 2)
+          plugin_size_kb = [math]::Round($pluginSize/1KB, 2)
+          total_size_kb = [math]::Round(($exeSize + $pluginSize)/1KB, 2)
+        } | ConvertTo-Json | Out-File "size-metrics.json"
+        
+    - name: Create nightly package
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        $packageName = "mcp-debugger-$version-windows-x64"
+        
+        New-Item -ItemType Directory -Path $packageName -Force
+        
+        # Copy binaries
+        Copy-Item "build/src/cli/Release/mcp-debugger.exe" "$packageName/"
+        Copy-Item "build/src/x64dbg/Release/mcp_debugger.dp64" "$packageName/"
+        
+        # Copy documentation
+        Copy-Item "sample-config.json" "$packageName/"
+        Copy-Item "QUICK_START.md" "$packageName/"
+        Copy-Item "README.md" "$packageName/" -ErrorAction SilentlyContinue
+        
+        # Copy benchmark results
+        Copy-Item "benchmark-results.json" "$packageName/"
+        Copy-Item "size-metrics.json" "$packageName/"
+        
+        # Create nightly info file
+        @"
+        MCP Debugger Nightly Build
+        ==========================
+        
+        Build Date: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC")
+        Commit: $(git rev-parse HEAD)
+        Version: $version
+        
+        This is a nightly development build.
+        Use at your own risk in production environments.
+        
+        For stable releases, visit:
+        https://github.com/your-repo/mcp-debugger/releases
+        "@ | Out-File -FilePath "$packageName/NIGHTLY_BUILD_INFO.txt" -Encoding utf8
+        
+        # Create ZIP
+        Compress-Archive -Path $packageName -DestinationPath "$packageName.zip"
+        
+    - name: Upload nightly artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-debugger-nightly-${{ steps.version.outputs.version }}
+        path: |
+          mcp-debugger-${{ steps.version.outputs.version }}-windows-x64.zip
+          benchmark-results.json
+          size-metrics.json
+        retention-days: 7
+        
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const run_url = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+          
+          github.rest.issues.create({
+            owner,
+            repo,
+            title: `Nightly build failed - ${new Date().toISOString().split('T')[0]}`,
+            body: `🚨 Nightly build failed!\n\nRun: ${run_url}\nCommit: ${context.sha}`,
+            labels: ['bug', 'nightly', 'ci']
+          }); 

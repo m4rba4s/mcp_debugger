@@ -1,0 +1,89 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+
+# vcpkg
+vcpkg/buildtrees/
+vcpkg/downloads/
+vcpkg/installed/
+vcpkg/packages/
+.vcpkg-root
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.vcxproj.filters
+*.sln.docstates
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Compiled binaries
+*.exe
+*.dll
+*.lib
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.dp64
+
+# Configuration files with secrets
+*config.json
+!sample-config.json
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Package managers
+node_modules/
+*.tgz
+
+# IDE files
+*.cbp
+*.layout
+*.depend
+
+# Documentation
+docs/html/
+docs/latex/
+
+# Test results
+TestResults/
+test-results.xml
+coverage.xml
+
+# Benchmarks
+benchmark-results.json
+size-metrics.json
+
+# Artifacts
+artifacts/
+packages/
+*.zip 

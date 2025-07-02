@@ -1,0 +1,219 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Release
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Setup vcpkg
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+          
+    - name: Cache vcpkg
+      uses: actions/cache@v4
+      with:
+        path: |
+          vcpkg/installed
+          vcpkg/buildtrees
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg/ports/**') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
+          
+    - name: Bootstrap vcpkg
+      run: |
+        if (-not (Test-Path "vcpkg/vcpkg.exe")) {
+          .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+        }
+        
+    - name: Install dependencies
+      run: |
+        .\vcpkg\vcpkg.exe install nlohmann-json cpp-httplib gtest --triplet x64-windows
+        
+    - name: Configure CMake
+      run: |
+        cmake -B build -S . `
+          -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+          -DBUILD_TESTS=ON
+          
+    - name: Build
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+      
+    - name: Run Tests
+      working-directory: build
+      run: ctest --config ${{ env.BUILD_TYPE }} --output-on-failure --parallel
+      
+    - name: Package artifacts
+      run: |
+        New-Item -ItemType Directory -Path artifacts -Force
+        Copy-Item "build/src/cli/Release/mcp-debugger.exe" "artifacts/"
+        Copy-Item "build/src/x64dbg/Release/mcp_debugger.dp64" "artifacts/"
+        Copy-Item "sample-config.json" "artifacts/"
+        Copy-Item "QUICK_START.md" "artifacts/"
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-debugger-windows-${{ github.sha }}
+        path: artifacts/
+        retention-days: 30
+        
+  security-scan:
+    runs-on: windows-latest
+    needs: build-windows
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mcp-debugger-windows-${{ github.sha }}
+        path: artifacts/
+        
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: cpp
+        
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+      
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      
+  performance-test:
+    runs-on: windows-latest
+    needs: build-windows
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mcp-debugger-windows-${{ github.sha }}
+        path: artifacts/
+        
+    - name: Performance Test
+      run: |
+        # Test startup time
+        $startTime = Get-Date
+        .\artifacts\mcp-debugger.exe -c ":status" | Out-Null
+        $endTime = Get-Date
+        $duration = ($endTime - $startTime).TotalMilliseconds
+        Write-Host "Startup time: $duration ms"
+        
+        if ($duration -gt 5000) {
+          Write-Error "Startup time too slow: $duration ms"
+          exit 1
+        }
+        
+  release:
+    runs-on: windows-latest
+    needs: [build-windows, security-scan, performance-test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mcp-debugger-windows-${{ github.sha }}
+        path: artifacts/
+        
+    - name: Create release package
+      run: |
+        $version = "${{ github.ref_name }}"
+        $packageName = "mcp-debugger-$version-windows-x64"
+        
+        New-Item -ItemType Directory -Path $packageName -Force
+        Copy-Item "artifacts/*" "$packageName/" -Recurse
+        
+        # Create installation script
+        @'
+        @echo off
+        echo Installing MCP Debugger...
+        
+        REM Copy plugin to x64dbg if found
+        if exist "C:\x64dbg\plugins\" (
+            copy "mcp_debugger.dp64" "C:\x64dbg\plugins\"
+            echo Plugin installed to x64dbg
+        )
+        
+        echo.
+        echo Setup complete! 
+        echo 1. Edit sample-config.json with your API keys
+        echo 2. Run: mcp-debugger.exe
+        echo 3. See QUICK_START.md for examples
+        pause
+        '@ | Out-File -FilePath "$packageName/install.bat" -Encoding ascii
+        
+        # Create ZIP
+        Compress-Archive -Path $packageName -DestinationPath "$packageName.zip"
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          mcp-debugger-${{ github.ref_name }}-windows-x64.zip
+        body: |
+          ## MCP Debugger ${{ github.ref_name }}
+          
+          🚀 **AI-Powered Reverse Engineering Tool**
+          
+          ### What's New:
+          - Enterprise-grade multi-AI provider support (Claude, OpenAI, Gemini)
+          - Thread-safe architecture with memory safety
+          - X64DBG plugin integration
+          - S-expression command interface
+          - Automated vulnerability detection
+          
+          ### Quick Start:
+          1. Download and extract the ZIP
+          2. Run `install.bat` (optional, installs x64dbg plugin)
+          3. Edit `sample-config.json` with your API keys
+          4. Run `mcp-debugger.exe`
+          
+          ### System Requirements:
+          - Windows 10/11 x64
+          - Visual C++ Redistributable 2022
+          - X64DBG (for plugin functionality)
+          
+          ### Files Included:
+          - `mcp-debugger.exe` - Main application
+          - `mcp_debugger.dp64` - X64DBG plugin
+          - `sample-config.json` - Configuration template
+          - `QUICK_START.md` - Usage guide
+          - `install.bat` - Installation helper
+          
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

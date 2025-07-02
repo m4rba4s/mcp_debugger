@@ -1,0 +1,55 @@
+; MCP Debugger Demo Session Script
+; This demonstrates the S-Expression DSL for debugging workflows
+
+; Connect to x64dbg
+:connect
+
+; Set up the debugging session
+(log "info" "Starting MCP demo session")
+
+; Set breakpoints and examine code
+(dbg "bp main")
+(dbg "bp CreateFileA")
+(dbg "bp WriteFile")
+
+; Start the target process
+(dbg "run")
+
+; When breakpoint hits, analyze with LLM
+(llm "Analyze this function entry point and explain what it might do" 
+     (dbg "disasm eip L20"))
+
+; Read and analyze memory
+(llm "What kind of data structure is this based on the memory layout?"
+     (read-memory (+ base-addr 0x1000) 256))
+
+; Pattern analysis
+(llm "Does this memory region contain any suspicious patterns?"
+     (dbg "dump esp L100"))
+
+; Demonstrate S-expression math and conditionals
+(if (= (read-memory eip 2) 0x4889)
+    (log "info" "Found x64 instruction pattern")
+    (log "warn" "Unexpected instruction bytes"))
+
+; Calculate addresses
+(log "info" (format-hex (+ base-addr 0x401000)))
+
+; Step through and analyze
+(dbg "step")
+(llm "What happened after this instruction step?" 
+     (dbg "r"))
+
+; Session variables
+(set current-addr (dbg "? eip"))
+(log "info" "Current address stored in session")
+
+; Pattern matching example
+(if (parse-pattern "MZ" (read-memory current-addr 2))
+    (llm "This looks like a PE header, analyze it" 
+         (read-memory current-addr 64))
+    (log "info" "Not a PE header"))
+
+; Finish session
+(log "info" "Demo session complete")
+:disconnect

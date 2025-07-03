@@ -1,0 +1,3 @@
+[33mecf6c62[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m  Major code cleanup and quality improvements
+[33m88a8844[m fix: Resolve static analysis and CI issues
+[33mf722b04[m fix: Simplify CI/CD workflows - remove failing pipelines

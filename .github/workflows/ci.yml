@@ -15,12 +15,18 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: recursive
         
     - name: Setup MSVC
       uses: microsoft/setup-msbuild@v2
        
     - name: Setup vcpkg
       run: |
+        if (!(Test-Path "vcpkg\bootstrap-vcpkg.bat")) {
+          Write-Error "vcpkg not found! Check submodule initialization."
+          exit 1
+        }
         .\vcpkg\bootstrap-vcpkg.bat
         .\vcpkg\vcpkg.exe integrate install
         
